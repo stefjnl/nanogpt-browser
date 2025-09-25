@@ -110,11 +110,15 @@ class CostComparison {
     }
 
     getCostValue(model) {
-        if (!model.pricing || !model.pricing.completion) return 999999;
+        // Handle free models (null, undefined, or 0 pricing)
+        if (!model.pricing || model.pricing.completion === null || model.pricing.completion === undefined || model.pricing.completion === 0) {
+            return 0; // Free models have cost of 0
+        }
         return parseFloat(model.pricing.completion);
     }
 
     getCostCategory(cost) {
+        if (cost === 0) return 'free'; // Free models
         if (cost < 0.001) return 'cheap';
         if (cost < 0.01) return 'medium';
         return 'expensive';
@@ -123,10 +127,15 @@ class CostComparison {
     getValueScore(model) {
         const cost = this.getCostValue(model);
         const context = model.context_length || 4096;
-        
+
+        // Handle free models with infinite value score
+        if (cost === 0) {
+            return { score: '∞', category: 'high' };
+        }
+
         // Simple scoring: higher context length and lower cost = better score
         const score = (context / 1000) / (cost * 1000);
-        
+
         if (score > 100) return { score: score.toFixed(0), category: 'high' };
         if (score > 10) return { score: score.toFixed(0), category: 'medium' };
         return { score: score.toFixed(0), category: 'low' };
@@ -166,7 +175,7 @@ class CostComparison {
                     </div>
                     <div class="leaderboard-column">
                         <div class="cost-value cost-${costCategory}">
-                            $${cost.toFixed(6)}
+                            ${cost === 0 ? 'FREE' : '$' + cost.toFixed(6)}
                         </div>
                     </div>
                     <div class="leaderboard-column">
@@ -175,7 +184,7 @@ class CostComparison {
                         </div>
                     </div>
                     <div class="leaderboard-column">
-                        <div class="score-badge score-${valueScore.category}">
+                        <div class="score-badge ${valueScore.category === 'high' && valueScore.score === '∞' ? 'score-infinite' : `score-${valueScore.category}`}">
                             ${valueScore.score}
                         </div>
                     </div>
