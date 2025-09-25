@@ -274,6 +274,53 @@ def api_openrouter_model_details(model_id):
             'error': f'Internal server error: {str(e)}'
         }), 500
 
+@app.route('/compare')
+def compare_index():
+    """Cost comparison page"""
+    return render_template('compare.html')
+
+@app.route('/api/compare/models')
+def api_compare_models():
+    """API endpoint to get models from both providers for comparison"""
+    try:
+        # Fetch models from both providers
+        nanogpt_models = nanogpt_client.get_models('all') or {}
+        openrouter_models = openrouter_client.get_models() or {}
+
+        combined_models = []
+
+        # Add NanoGPT models with provider info
+        if nanogpt_models and 'data' in nanogpt_models:
+            for model in nanogpt_models['data']:
+                combined_models.append({
+                    **model,
+                    'provider': 'nanogpt',
+                    '_source': 'nanogpt'
+                })
+
+        # Add OpenRouter models with provider info
+        if openrouter_models and 'data' in openrouter_models:
+            for model in openrouter_models['data']:
+                combined_models.append({
+                    **model,
+                    'provider': 'openrouter',
+                    '_source': 'openrouter'
+                })
+
+        print(f"Combined {len(combined_models)} models for comparison")
+
+        return jsonify({
+            'success': True,
+            'data': combined_models
+        })
+
+    except Exception as e:
+        print(f"Error in comparison API: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Internal server error: {str(e)}'
+        }), 500
+
 @app.route('/api/models/<path:model_id>')
 def api_model_details(model_id):
     """API endpoint to get specific model details"""

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Cost Comparison - NanoGPT Browser</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/compare.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>Model Cost Leaderboard</h1>
+                    <span class="subtitle">Compare pricing across providers</span>
+                </div>
+                <div class="header-actions">
+                    <a href="/" class="btn btn-outline">
+                        <span class="btn-icon">🏠</span>
+                        NanoGPT
+                    </a>
+                    <a href="/openrouter" class="btn btn-outline">
+                        <span class="btn-icon">🌐</span>
+                        OpenRouter
+                    </a>
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <span class="btn-icon">🔄</span>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Filter Controls -->
+            <div class="search-filter-bar">
+                <div class="controls-container">
+                    <div class="filter-container">
+                        <select id="sortSelect" class="filter-select">
+                            <option value="cost">Sort by: Cost (Low to High)</option>
+                            <option value="cost-desc">Sort by: Cost (High to Low)</option>
+                            <option value="provider">Sort by: Provider</option>
+                            <option value="name">Sort by: Model Name</option>
+                        </select>
+                        <select id="providerFilter" class="filter-select">
+                            <option value="all">All Providers</option>
+                            <option value="openrouter">OpenRouter Only</option>
+                            <option value="nanogpt">NanoGPT Only</option>
+                        </select>
+                    </div>
+                    <div class="stats-container">
+                        <span class="stat-item">
+                            <span class="stat-label">Models:</span>
+                            <span id="modelCount" class="stat-value">0</span>
+                        </span>
+                        <span class="stat-item">
+                            <span class="stat-label">Avg Cost:</span>
+                            <span id="avgCost" class="stat-value">$0.00</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state">
+                <div class="loading-spinner"></div>
+                <p>Loading cost comparison data...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error-state" style="display: none;">
+                <div class="error-icon">⚠️</div>
+                <h3>Failed to load cost data</h3>
+                <p id="errorMessage">Unable to fetch model pricing information</p>
+                <button id="retryBtn" class="btn btn-primary">Try Again</button>
+            </div>
+
+            <!-- Leaderboard Table -->
+            <div id="leaderboardContainer" class="leaderboard-container" style="display: none;">
+                <div class="leaderboard-header">
+                    <div class="leaderboard-column rank">Rank</div>
+                    <div class="leaderboard-column model">Model</div>
+                    <div class="leaderboard-column provider">Provider</div>
+                    <div class="leaderboard-column cost">Cost per MTok</div>
+                    <div class="leaderboard-column context">Context</div>
+                    <div class="leaderboard-column score">Value Score</div>
+                </div>
+                <div id="leaderboardContent" class="leaderboard-content">
+                    <!-- Models will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-icon">💰</div>
+                <h3>No models found</h3>
+                <p>Try adjusting your filter criteria</p>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/compare.js') }}"></script>
+</body>
+</html>
