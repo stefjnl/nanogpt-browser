@@ -1,9 +1,9 @@
 /**
- * NanoGPT Model Browser - JavaScript
- * Modern web application for browsing AI models
+ * OpenRouter Model Browser - JavaScript
+ * Frontend for browsing OpenRouter AI models
  */
 
-class ModelBrowser {
+class OpenRouterBrowser {
     constructor() {
         this.models = [];
         this.filteredModels = [];
@@ -75,10 +75,7 @@ class ModelBrowser {
         this.listViewBtn.addEventListener('click', () => this.setView('list'));
 
         // Button events
-        this.refreshBtn.addEventListener('click', () => {
-            const currentFilter = this.filterSelect.value;
-            this.loadModels(currentFilter);
-        });
+        this.refreshBtn.addEventListener('click', () => this.loadModels());
         this.settingsBtn.addEventListener('click', () => this.showSettings());
         this.retryBtn.addEventListener('click', () => this.loadModels());
 
@@ -113,30 +110,26 @@ class ModelBrowser {
         });
     }
 
-    async loadModels(modelType = 'all') {
+    async loadModels() {
         try {
             this.showLoading();
 
-            const url = modelType === 'all' ? '/api/models' : `/api/models?type=${modelType}`;
-            console.log('Loading models from:', url);
-            const response = await fetch(url);
-            console.log('Response status:', response.status);
+            const response = await fetch('/api/openrouter/models');
             const data = await response.json();
-            console.log('API Response:', data);
+            console.log('OpenRouter API Response:', data);
 
             if (data.success) {
                 this.models = data.data.data || [];
                 this.filteredModels = [...this.models];
-                console.log(`Loaded ${this.models.length} models for type: ${modelType}`);
-                console.log('Models loaded:', this.models.map(m => ({ id: m.id, type: m._requested_type })));
+                console.log(`Loaded ${this.models.length} OpenRouter models`);
                 this.renderModels();
                 this.hideError();
             } else {
-                console.error('API Error:', data.error);
+                console.error('OpenRouter API Error:', data.error);
                 this.showError(data.error || 'Failed to load models');
             }
         } catch (error) {
-            console.error('Error loading models:', error);
+            console.error('Error loading OpenRouter models:', error);
             this.showError('Network error. Please check your connection.');
         }
     }
@@ -217,7 +210,7 @@ class ModelBrowser {
 
         const modelType = this.getModelType(model.id);
         const contextLength = model.context_length ? model.context_length.toLocaleString() : 'N/A';
-        const isCheap = model.cost_estimate?.cheap ? '💰' : '💎';
+        const isVision = model.capabilities?.vision ? '👁️' : '💬';
 
         const cardHtml = `
             <div class="model-card fade-in" data-model-id="${model.id}">
@@ -236,7 +229,7 @@ class ModelBrowser {
                         <div class="meta-value">${contextLength} tokens</div>
                     </div>
                     <div class="meta-item">
-                        <div class="meta-value">${isCheap} ${this.formatPricing(model.pricing)}</div>
+                        <div class="meta-value">${isVision} ${this.formatPricing(model.pricing)}</div>
                     </div>
                 </div>
             </div>
@@ -262,7 +255,7 @@ class ModelBrowser {
             this.modalLoading.style.display = 'block';
             this.modelModal.style.display = 'flex';
 
-            const response = await fetch(`/api/models/${modelId}`);
+            const response = await fetch(`/api/openrouter/models/${modelId}`);
             const data = await response.json();
 
             if (data.success) {
@@ -302,17 +295,19 @@ class ModelBrowser {
         const modelType = this.getModelType(model.id);
         const contextLength = model.context_length ? model.context_length.toLocaleString() : 'N/A';
         const description = model.description || 'No description available';
-        const isCheap = model.cost_estimate?.cheap ? '💰 Budget-friendly' : '💎 Premium';
+        const isVision = model.capabilities?.vision ? '👁️ Vision-enabled' : '💬 Text-only';
 
         // Build capabilities list
         const capabilities = [];
-        if (model.capabilities) {
-            if (model.capabilities.vision) capabilities.push('Vision');
-            capabilities.push('Text Generation');
-            capabilities.push('Chat');
-        } else {
-            capabilities.push('Text Generation', 'Chat');
-        }
+        if (model.capabilities?.vision) capabilities.push('Vision');
+        capabilities.push('Text Generation');
+        capabilities.push('Chat');
+
+        // Build supported parameters list
+        const supportedParams = model._supported_parameters || [];
+        const parametersHtml = supportedParams.slice(0, 10).map(param =>
+            `<div class="parameter-tag">${param}</div>`
+        ).join('') + (supportedParams.length > 10 ? `<div class="parameter-tag">+${supportedParams.length - 10} more</div>` : '');
 
         const detailHtml = `
             <div class="model-detail-grid">
@@ -337,17 +332,17 @@ class ModelBrowser {
                     <span>${contextLength} tokens</span>
                 </div>
                 <div class="detail-item">
-                    <label>Pricing Tier</label>
-                    <span>${isCheap}</span>
+                    <label>Capabilities</label>
+                    <span>${isVision}</span>
                 </div>
                 <div class="detail-item">
                     <label>Pricing Details</label>
                     <span>${this.formatPricing(model.pricing)}</span>
                 </div>
                 <div class="detail-item">
-                    <label>Capabilities</label>
-                    <div class="capabilities-list">
-                        ${capabilities.map(cap => `<div class="capability-tag">${cap}</div>`).join('')}
+                    <label>Supported Parameters</label>
+                    <div class="parameters-list">
+                        ${parametersHtml}
                     </div>
                 </div>
             </div>
@@ -439,37 +434,22 @@ class ModelBrowser {
     }
 
     handleFilter(filterType) {
-        console.log('Filter changed to:', filterType);
+        console.log('OpenRouter filter changed to:', filterType);
 
-        // For subscription and paid filters, reload from API
-        if (filterType === 'subscription' || filterType === 'paid') {
-            console.log('Loading models from API for type:', filterType);
-            console.log('API URL will be:', filterType === 'all' ? '/api/models' : `/api/models?type=${filterType}`);
-            this.loadModels(filterType);
-            return;
-        }
-
-        // For other filters, filter existing models
         if (filterType === 'all') {
-            console.log('Showing all models');
+            console.log('Showing all OpenRouter models');
             this.filteredModels = [...this.models];
         } else {
-            console.log('Filtering models by type:', filterType);
+            console.log('Filtering OpenRouter models by provider:', filterType);
             this.filteredModels = this.models.filter(model => {
-                const modelType = this.getModelType(model.id);
-                console.log(`Model ${model.id} type: ${modelType}, filter: ${filterType}, match: ${modelType.toLowerCase() === filterType}`);
-                return modelType.toLowerCase() === filterType;
+                const provider = model.owned_by.toLowerCase();
+                return provider === filterType;
             });
-            console.log(`Filtered to ${this.filteredModels.length} models`);
+            console.log(`Filtered to ${this.filteredModels.length} OpenRouter models`);
         }
 
         // Apply current sorting
         this.applySorting(this.currentSort, this.currentSortOrder);
-        this.renderModels();
-    }
-
-    handleSort(sortBy, sortOrder) {
-        this.applySorting(sortBy, sortOrder);
         this.renderModels();
     }
 
@@ -547,14 +527,17 @@ class ModelBrowser {
     }
 
     getModelType(modelId) {
-        if (modelId.includes('chatgpt') || modelId.includes('gpt')) {
-            return 'ChatGPT';
-        } else if (modelId.includes('claude')) {
-            return 'Claude';
-        } else if (modelId.includes('gemini')) {
-            return 'Gemini';
-        } else if (modelId.includes('deepseek')) {
-            return 'DeepSeek';
+        const provider = modelId.split('/')[0].toLowerCase();
+        if (provider.includes('anthropic')) {
+            return 'Anthropic';
+        } else if (provider.includes('openai')) {
+            return 'OpenAI';
+        } else if (provider.includes('google')) {
+            return 'Google';
+        } else if (provider.includes('meta')) {
+            return 'Meta';
+        } else if (provider.includes('qwen')) {
+            return 'Qwen';
         } else {
             return 'Other';
         }
@@ -563,8 +546,8 @@ class ModelBrowser {
     formatPricing(pricing) {
         if (!pricing) return 'N/A';
 
-        const prompt = pricing.prompt ? `$${pricing.prompt.toLocaleString()}` : '0';
-        const completion = pricing.completion ? `$${pricing.completion.toLocaleString()}` : '0';
+        const prompt = pricing.prompt ? `$${pricing.prompt}` : '0';
+        const completion = pricing.completion ? `$${pricing.completion}` : '0';
         const unit = pricing.unit || 'per_million_tokens';
 
         if (unit === 'per_million_tokens') {
@@ -615,7 +598,7 @@ class ModelBrowser {
 
     loadCurrentSettings() {
         // Load API key from localStorage (masked)
-        const savedApiKey = localStorage.getItem('nanogpt_api_key');
+        const savedApiKey = localStorage.getItem('openrouter_api_key');
         if (savedApiKey) {
             this.apiKeyInput.value = '••••••••••••••••••••••••••••••••';
         }
@@ -629,7 +612,7 @@ class ModelBrowser {
         const apiKey = this.apiKeyInput.value.trim();
 
         if (apiKey && apiKey !== '••••••••••••••••••••••••••••••••') {
-            localStorage.setItem('nanogpt_api_key', apiKey);
+            localStorage.setItem('openrouter_api_key', apiKey);
             this.showNotification('API key saved successfully!', 'success');
             this.apiKeyInput.value = '••••••••••••••••••••••••••••••••';
         } else {
@@ -638,7 +621,7 @@ class ModelBrowser {
     }
 
     clearApiKey() {
-        localStorage.removeItem('nanogpt_api_key');
+        localStorage.removeItem('openrouter_api_key');
         this.apiKeyInput.value = '';
         this.showNotification('API key cleared', 'info');
     }
@@ -719,18 +702,43 @@ class ModelBrowser {
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new ModelBrowser();
+    new OpenRouterBrowser();
 });
 
-// Add some CSS for notifications
-const notificationStyles = `
+// Add some CSS for notifications and OpenRouter-specific styles
+const openRouterStyles = `
 .notification {
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     backdrop-filter: blur(10px);
 }
+
+.parameters-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.parameter-tag {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.model-card[data-source="openrouter"] {
+    border-left: 3px solid #f59e0b;
+}
+
+.model-card[data-source="openrouter"]::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #f97316 100%);
+}
 `;
 
-// Inject notification styles
+// Inject OpenRouter-specific styles
 const styleSheet = document.createElement('style');
-styleSheet.textContent = notificationStyles;
+styleSheet.textContent = openRouterStyles;
 document.head.appendChild(styleSheet);
