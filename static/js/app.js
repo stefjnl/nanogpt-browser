@@ -75,7 +75,10 @@ class ModelBrowser {
         this.listViewBtn.addEventListener('click', () => this.setView('list'));
 
         // Button events
-        this.refreshBtn.addEventListener('click', () => this.loadModels());
+        this.refreshBtn.addEventListener('click', () => {
+            const currentFilter = this.filterSelect.value;
+            this.loadModels(currentFilter);
+        });
         this.settingsBtn.addEventListener('click', () => this.showSettings());
         this.retryBtn.addEventListener('click', () => this.loadModels());
 
@@ -110,19 +113,24 @@ class ModelBrowser {
         });
     }
 
-    async loadModels() {
+    async loadModels(modelType = 'all') {
         try {
             this.showLoading();
 
-            const response = await fetch('/api/models');
+            const url = modelType === 'all' ? '/api/models' : `/api/models?type=${modelType}`;
+            console.log('Loading models from:', url);
+            const response = await fetch(url);
             const data = await response.json();
+            console.log('API Response:', data);
 
             if (data.success) {
                 this.models = data.data.data || [];
                 this.filteredModels = [...this.models];
+                console.log(`Loaded ${this.models.length} models for type: ${modelType}`);
                 this.renderModels();
                 this.hideError();
             } else {
+                console.error('API Error:', data.error);
                 this.showError(data.error || 'Failed to load models');
             }
         } catch (error) {
@@ -217,19 +225,15 @@ class ModelBrowser {
                 </div>
                 <div class="model-meta">
                     <div class="meta-item">
-                        <div class="meta-label">Created</div>
                         <div class="meta-value">${createdDate}</div>
                     </div>
                     <div class="meta-item">
-                        <div class="meta-label">Provider</div>
                         <div class="meta-value">${model.owned_by}</div>
                     </div>
                     <div class="meta-item">
-                        <div class="meta-label">Context</div>
                         <div class="meta-value">${contextLength} tokens</div>
                     </div>
                     <div class="meta-item">
-                        <div class="meta-label">Pricing</div>
                         <div class="meta-value">${isCheap} ${this.formatPricing(model.pricing)}</div>
                     </div>
                 </div>
@@ -433,13 +437,27 @@ class ModelBrowser {
     }
 
     handleFilter(filterType) {
+        console.log('Filter changed to:', filterType);
+
+        // For subscription and paid filters, reload from API
+        if (filterType === 'subscription' || filterType === 'paid') {
+            console.log('Loading models from API for type:', filterType);
+            this.loadModels(filterType);
+            return;
+        }
+
+        // For other filters, filter existing models
         if (filterType === 'all') {
+            console.log('Showing all models');
             this.filteredModels = [...this.models];
         } else {
+            console.log('Filtering models by type:', filterType);
             this.filteredModels = this.models.filter(model => {
                 const modelType = this.getModelType(model.id);
+                console.log(`Model ${model.id} type: ${modelType}, filter: ${filterType}, match: ${modelType.toLowerCase() === filterType}`);
                 return modelType.toLowerCase() === filterType;
             });
+            console.log(`Filtered to ${this.filteredModels.length} models`);
         }
 
         // Apply current sorting

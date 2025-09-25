@@ -289,6 +289,7 @@ body {
     gap: var(--spacing-md);
     align-items: center;
     flex-wrap: wrap;
+    min-width: 200px;
 }
 
 .filter-select, .sort-select, .sort-order {
@@ -302,6 +303,14 @@ body {
     min-width: 150px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3e%3cpath fill='%23cbd5e1' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-md) center;
+    background-size: 8px;
+    padding-right: var(--spacing-2xl);
 }
 
 .filter-select:hover {
@@ -525,13 +534,13 @@ body {
 
 .meta-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     font-size: 0.875rem;
     padding: var(--spacing-sm);
     background: rgba(255, 255, 255, 0.02);
     border-radius: var(--border-radius);
     border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: var(--spacing-xs);
 }
 
 .meta-label {
@@ -635,6 +644,7 @@ body {
     padding: var(--spacing-xs) var(--spacing-sm);
     background: transparent;
     border: none;
+    justify-content: flex-start;
 }
 
 /* Empty State */

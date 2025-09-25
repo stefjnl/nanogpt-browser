@@ -25,33 +25,81 @@ class NanoGPTClient:
             'x-api-key': self.api_key,
             'Content-Type': 'application/json'
         }
+        print(f"NanoGPT Client initialized with API key: {self.api_key[:10]}..." if self.api_key else "No API key found")
 
-    def get_models(self):
-        """Fetch all available models from NanoGPT API with detailed information"""
+    def get_models(self, model_type='all'):
+        """Fetch models from NanoGPT API with detailed information
+
+        Args:
+            model_type (str): Type of models to fetch
+                - 'all': All models (default)
+                - 'subscription': Subscription-only models
+                - 'paid': Paid-only models
+        """
         try:
-            url = f'{self.base_url}/personalized/v1/models?detailed=true'
+            if model_type == 'subscription':
+                url = f'{self.base_url}/subscription/v1/models?detailed=true'
+                print(f"Fetching subscription models from: {url}")
+            elif model_type == 'paid':
+                url = f'{self.base_url}/paid/v1/models?detailed=true'
+                print(f"Fetching paid models from: {url}")
+            else:
+                url = f'{self.base_url}/personalized/v1/models?detailed=true'
+                print(f"Fetching all models from: {url}")
+
+            print(f"Using API key: {self.api_key[:10]}..." if self.api_key else "No API key provided")
             response = requests.get(url, headers=self.headers, timeout=30)
+            print(f"Response status: {response.status_code}")
 
             if response.status_code == 200:
-                return response.json()
+                data = response.json()
+                model_count = len(data.get('data', [])) if data else 0
+                print(f"Successfully fetched {model_count} models for type: {model_type}")
+
+                # Add model_type to each model for client-side filtering if needed
+                if data and 'data' in data:
+                    for model in data['data']:
+                        model['_requested_type'] = model_type
+                return data
             else:
                 print(f"API Error: {response.status_code} - {response.text}")
+                # If specific endpoint fails, fall back to all models
+                if model_type != 'all':
+                    print(f"Falling back to all models for {model_type}")
+                    return self.get_models('all')
                 return None
 
         except requests.exceptions.RequestException as e:
             print(f"Request Error: {e}")
+            # If specific endpoint fails, fall back to all models
+            if model_type != 'all':
+                print(f"Falling back to all models for {model_type}")
+                return self.get_models('all')
             return None
 
     def get_model_details(self, model_id):
         """Get detailed information about a specific model"""
-        # For now, we'll return the model info from the list
-        # In the future, this could call a dedicated model details endpoint
-        models_data = self.get_models()
-        if models_data and 'data' in models_data:
-            for model in models_data['data']:
-                if model['id'] == model_id:
-                    return model
-        return None
+        try:
+            # Try to get the model from the cached models first
+            if hasattr(self, '_cached_models'):
+                models_data = self._cached_models
+            else:
+                # Fetch all models and cache them
+                models_data = self.get_models('all')
+                self._cached_models = models_data
+
+            if models_data and 'data' in models_data:
+                for model in models_data['data']:
+                    if model['id'] == model_id:
+                        print(f"Found model details for: {model_id}")
+                        return model
+
+            print(f"Model not found in cache: {model_id}")
+            return None
+
+        except Exception as e:
+            print(f"Error in get_model_details: {str(e)}")
+            return None
 
 # Initialize NanoGPT client
 nanogpt_client = NanoGPTClient()
@@ -63,14 +111,16 @@ def index():
 
 @app.route('/api/models')
 def api_models():
-    """API endpoint to get all models"""
+    """API endpoint to get models with optional type filtering"""
     try:
-        models_data = nanogpt_client.get_models()
+        model_type = request.args.get('type', 'all')
+        models_data = nanogpt_client.get_models(model_type)
 
         if models_data:
             return jsonify({
                 'success': True,
-                'data': models_data
+                'data': models_data,
+                'type': model_type
             })
         else:
             return jsonify({
@@ -84,10 +134,11 @@ def api_models():
             'error': f'Internal server error: {str(e)}'
         }), 500
 
-@app.route('/api/models/<model_id>')
+@app.route('/api/models/<path:model_id>')
 def api_model_details(model_id):
     """API endpoint to get specific model details"""
     try:
+        print(f"Fetching details for model: {model_id}")
         model_data = nanogpt_client.get_model_details(model_id)
 
         if model_data:
@@ -96,12 +147,14 @@ def api_model_details(model_id):
                 'data': model_data
             })
         else:
+            print(f"Model not found: {model_id}")
             return jsonify({
                 'success': False,
                 'error': 'Model not found'
             }), 404
 
     except Exception as e:
+        print(f"Error fetching model details: {str(e)}")
         return jsonify({
             'success': False,
             'error': f'Internal server error: {str(e)}'
@@ -114,6 +167,37 @@ def not_found(error):
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/test-endpoints')
+def test_endpoints():
+    """Test endpoint to verify API connectivity"""
+    client = NanoGPTClient()
+    results = {}
+
+    # Test all endpoints
+    for endpoint_type in ['all', 'subscription', 'paid']:
+        try:
+            data = client.get_models(endpoint_type)
+            if data:
+                results[endpoint_type] = {
+                    'success': True,
+                    'count': len(data.get('data', [])),
+                    'message': f'Successfully fetched {len(data.get("data", []))} models'
+                }
+            else:
+                results[endpoint_type] = {
+                    'success': False,
+                    'count': 0,
+                    'message': 'No data returned'
+                }
+        except Exception as e:
+            results[endpoint_type] = {
+                'success': False,
+                'count': 0,
+                'message': f'Error: {str(e)}'
+            }
+
+    return jsonify(results)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
