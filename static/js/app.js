@@ -142,13 +142,32 @@ class ModelBrowser {
     }
 
     createModelCard(model) {
-        const createdDate = new Date(model.created * 1000).toLocaleDateString();
+        // Fix date formatting - handle both timestamp and ISO string formats
+        let createdDate;
+        if (typeof model.created === 'number') {
+            // Unix timestamp
+            createdDate = new Date(model.created * 1000).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } else {
+            // ISO string or other format
+            createdDate = new Date(model.created).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
         const modelType = this.getModelType(model.id);
+        const contextLength = model.context_length ? model.context_length.toLocaleString() : 'N/A';
+        const isCheap = model.cost_estimate?.cheap ? '💰' : '💎';
 
         const cardHtml = `
             <div class="model-card fade-in" data-model-id="${model.id}">
                 <div class="model-card-header">
-                    <div class="model-id">${model.id}</div>
+                    <div class="model-id">${model.name || model.id}</div>
                     <div class="model-type">${modelType}</div>
                 </div>
                 <div class="model-meta">
@@ -157,8 +176,16 @@ class ModelBrowser {
                         <div class="meta-value">${createdDate}</div>
                     </div>
                     <div class="meta-item">
-                        <div class="meta-label">Owner</div>
+                        <div class="meta-label">Provider</div>
                         <div class="meta-value">${model.owned_by}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Context</div>
+                        <div class="meta-value">${contextLength} tokens</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Pricing</div>
+                        <div class="meta-value">${isCheap} ${this.formatPricing(model.pricing)}</div>
                     </div>
                 </div>
             </div>
@@ -201,37 +228,75 @@ class ModelBrowser {
     }
 
     renderModelDetails(model) {
-        this.modalTitle.textContent = model.id;
+        this.modalTitle.textContent = model.name || model.id;
         this.modalLoading.style.display = 'none';
         this.modalContent.style.display = 'block';
 
-        const createdDate = new Date(model.created * 1000).toLocaleDateString();
+        // Fix date formatting
+        let createdDate;
+        if (typeof model.created === 'number') {
+            createdDate = new Date(model.created * 1000).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } else {
+            createdDate = new Date(model.created).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
         const modelType = this.getModelType(model.id);
+        const contextLength = model.context_length ? model.context_length.toLocaleString() : 'N/A';
+        const description = model.description || 'No description available';
+        const isCheap = model.cost_estimate?.cheap ? '💰 Budget-friendly' : '💎 Premium';
+
+        // Build capabilities list
+        const capabilities = [];
+        if (model.capabilities) {
+            if (model.capabilities.vision) capabilities.push('Vision');
+            capabilities.push('Text Generation');
+            capabilities.push('Chat');
+        } else {
+            capabilities.push('Text Generation', 'Chat');
+        }
 
         const detailHtml = `
             <div class="model-detail-grid">
                 <div class="detail-item">
-                    <label>Model ID</label>
-                    <span>${model.id}</span>
+                    <label>Model Name</label>
+                    <span>${model.name || model.id}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Description</label>
+                    <span>${description}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Provider</label>
+                    <span>${model.owned_by}</span>
                 </div>
                 <div class="detail-item">
                     <label>Created</label>
                     <span>${createdDate}</span>
                 </div>
                 <div class="detail-item">
-                    <label>Owner</label>
-                    <span>${model.owned_by}</span>
+                    <label>Context Length</label>
+                    <span>${contextLength} tokens</span>
                 </div>
                 <div class="detail-item">
-                    <label>Type</label>
-                    <span>${modelType}</span>
+                    <label>Pricing Tier</label>
+                    <span>${isCheap}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Pricing Details</label>
+                    <span>${this.formatPricing(model.pricing)}</span>
                 </div>
                 <div class="detail-item">
                     <label>Capabilities</label>
                     <div class="capabilities-list">
-                        <div class="capability-tag">Text Generation</div>
-                        <div class="capability-tag">Chat</div>
-                        <div class="capability-tag">API Access</div>
+                        ${capabilities.map(cap => `<div class="capability-tag">${cap}</div>`).join('')}
                     </div>
                 </div>
             </div>
@@ -262,10 +327,17 @@ class ModelBrowser {
         if (searchTerm === '') {
             this.filteredModels = [...this.models];
         } else {
-            this.filteredModels = this.models.filter(model =>
-                model.id.toLowerCase().includes(searchTerm) ||
-                model.owned_by.toLowerCase().includes(searchTerm)
-            );
+            this.filteredModels = this.models.filter(model => {
+                const name = (model.name || model.id).toLowerCase();
+                const id = model.id.toLowerCase();
+                const description = (model.description || '').toLowerCase();
+                const provider = model.owned_by.toLowerCase();
+
+                return name.includes(searchTerm) ||
+                       id.includes(searchTerm) ||
+                       description.includes(searchTerm) ||
+                       provider.includes(searchTerm);
+            });
         }
 
         this.renderModels();
@@ -275,9 +347,10 @@ class ModelBrowser {
         if (filterType === 'all') {
             this.filteredModels = [...this.models];
         } else {
-            this.filteredModels = this.models.filter(model =>
-                model.id.toLowerCase().includes(filterType)
-            );
+            this.filteredModels = this.models.filter(model => {
+                const modelType = this.getModelType(model.id);
+                return modelType.toLowerCase() === filterType;
+            });
         }
 
         this.renderModels();
@@ -306,9 +379,24 @@ class ModelBrowser {
             return 'Claude';
         } else if (modelId.includes('gemini')) {
             return 'Gemini';
+        } else if (modelId.includes('deepseek')) {
+            return 'DeepSeek';
         } else {
             return 'Other';
         }
+    }
+
+    formatPricing(pricing) {
+        if (!pricing) return 'N/A';
+
+        const prompt = pricing.prompt ? `$${pricing.prompt.toLocaleString()}` : '0';
+        const completion = pricing.completion ? `$${pricing.completion.toLocaleString()}` : '0';
+        const unit = pricing.unit || 'per_million_tokens';
+
+        if (unit === 'per_million_tokens') {
+            return `${prompt}/${completion} per MTok`;
+        }
+        return `${prompt}/${completion} ${unit}`;
     }
 
     showLoading() {

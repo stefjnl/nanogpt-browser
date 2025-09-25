@@ -20,16 +20,16 @@ class NanoGPTClient:
 
     def __init__(self, api_key=None):
         self.api_key = api_key or os.getenv('NANOGPT_API_KEY')
-        self.base_url = 'https://nano-gpt.com/api/v1'
+        self.base_url = 'https://nano-gpt.com/api'
         self.headers = {
-            'Authorization': f'Bearer {self.api_key}',
+            'x-api-key': self.api_key,
             'Content-Type': 'application/json'
         }
 
     def get_models(self):
-        """Fetch all available models from NanoGPT API"""
+        """Fetch all available models from NanoGPT API with detailed information"""
         try:
-            url = f'{self.base_url}/models'
+            url = f'{self.base_url}/personalized/v1/models?detailed=true'
             response = requests.get(url, headers=self.headers, timeout=30)
 
             if response.status_code == 200:
