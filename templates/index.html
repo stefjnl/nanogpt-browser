@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NanoGPT Model Browser</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>NanoGPT Models</h1>
+                    <span class="subtitle">Browse available AI models</span>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <span class="btn-icon">🔄</span>
+                        Refresh
+                    </button>
+                    <button id="settingsBtn" class="btn btn-outline">
+                        <span class="btn-icon">⚙️</span>
+                        Settings
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Search and Filter Bar -->
+            <div class="search-filter-bar">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search models..." class="search-input">
+                    <span class="search-icon">🔍</span>
+                </div>
+                <div class="filter-container">
+                    <select id="filterSelect" class="filter-select">
+                        <option value="all">All Models</option>
+                        <option value="chatgpt">ChatGPT</option>
+                        <option value="claude">Claude</option>
+                        <option value="gemini">Gemini</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <div class="view-toggle">
+                        <button id="gridViewBtn" class="view-btn active" data-view="grid">
+                            <span class="view-icon">⊞</span>
+                        </button>
+                        <button id="listViewBtn" class="view-btn" data-view="list">
+                            <span class="view-icon">☰</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state">
+                <div class="loading-spinner"></div>
+                <p>Loading models...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error-state" style="display: none;">
+                <div class="error-icon">⚠️</div>
+                <h3>Failed to load models</h3>
+                <p id="errorMessage">Unable to connect to NanoGPT API</p>
+                <button id="retryBtn" class="btn btn-primary">Try Again</button>
+            </div>
+
+            <!-- Models Grid -->
+            <div id="modelsGrid" class="models-container grid-view">
+                <!-- Models will be populated by JavaScript -->
+            </div>
+
+            <!-- Models List -->
+            <div id="modelsList" class="models-container list-view" style="display: none;">
+                <!-- Models will be populated by JavaScript -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-icon">🤖</div>
+                <h3>No models found</h3>
+                <p>Try adjusting your search or filter criteria</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Model Detail Modal -->
+    <div id="modelModal" class="modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Model Details</h2>
+                <button id="closeModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalLoading" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Loading model details...</p>
+                </div>
+                <div id="modalContent" style="display: none;">
+                    <div class="model-detail-grid">
+                        <div class="detail-item">
+                            <label>Model ID:</label>
+                            <span id="detailId"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Created:</label>
+                            <span id="detailCreated"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Owner:</label>
+                            <span id="detailOwner"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Type:</label>
+                            <span id="detailType"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Capabilities:</label>
+                            <div id="detailCapabilities" class="capabilities-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="closeSettingsModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>API Configuration</h3>
+                    <div class="setting-item">
+                        <label for="apiKeyInput">API Key:</label>
+                        <input type="password" id="apiKeyInput" placeholder="Enter your NanoGPT API key" class="settings-input">
+                    </div>
+                    <div class="setting-item">
+                        <button id="saveApiKeyBtn" class="btn btn-primary">Save API Key</button>
+                        <button id="clearApiKeyBtn" class="btn btn-outline">Clear</button>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Display Options</h3>
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoRefresh" checked>
+                            <span class="checkmark"></span>
+                            Auto-refresh models every 30 seconds
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
