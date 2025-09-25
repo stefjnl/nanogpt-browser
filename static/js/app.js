@@ -34,6 +34,10 @@ class ModelBrowser {
         this.settingsBtn = document.getElementById('settingsBtn');
         this.retryBtn = document.getElementById('retryBtn');
 
+        // Sorting
+        this.currentSort = 'name';
+        this.currentSortOrder = 'asc';
+
         // Modals
         this.modelModal = document.getElementById('modelModal');
         this.settingsModal = document.getElementById('settingsModal');
@@ -62,6 +66,9 @@ class ModelBrowser {
         this.filterSelect.addEventListener('change', (e) => {
             this.handleFilter(e.target.value);
         });
+
+        // Add event listeners for sortable headers
+        this.bindSortableHeaders();
 
         // View toggle events
         this.gridViewBtn.addEventListener('click', () => this.setView('grid'));
@@ -134,11 +141,49 @@ class ModelBrowser {
         this.hideLoading();
 
         const modelsHtml = this.filteredModels.map(model => this.createModelCard(model)).join('');
+
+        // Render grid view
         this.modelsGrid.innerHTML = modelsHtml;
-        this.modelsList.innerHTML = modelsHtml;
+
+        // Render list view with header
+        const listHeaderHtml = this.createListHeader();
+        this.modelsList.innerHTML = listHeaderHtml + modelsHtml;
 
         // Bind model card events
         this.bindModelCardEvents();
+
+        // Bind sortable headers
+        this.bindSortableHeaders();
+
+        // Update sort indicators
+        this.updateSortIndicators();
+    }
+
+    createListHeader() {
+        return `
+            <div class="list-header">
+                <div class="list-header-item sortable" data-sort="name">
+                    <span>Name</span>
+                    <span class="sort-indicator" id="sort-name">↕️</span>
+                </div>
+                <div class="list-header-item sortable" data-sort="created">
+                    <span>Created</span>
+                    <span class="sort-indicator" id="sort-created">↕️</span>
+                </div>
+                <div class="list-header-item sortable" data-sort="owned_by">
+                    <span>Provider</span>
+                    <span class="sort-indicator" id="sort-owned_by">↕️</span>
+                </div>
+                <div class="list-header-item sortable" data-sort="context_length">
+                    <span>Context</span>
+                    <span class="sort-indicator" id="sort-context_length">↕️</span>
+                </div>
+                <div class="list-header-item sortable" data-sort="pricing">
+                    <span>Pricing</span>
+                    <span class="sort-indicator" id="sort-pricing">↕️</span>
+                </div>
+            </div>
+        `;
     }
 
     createModelCard(model) {
@@ -340,7 +385,51 @@ class ModelBrowser {
             });
         }
 
+        // Apply current sorting
+        this.applySorting(this.currentSort, this.currentSortOrder);
         this.renderModels();
+    }
+
+    bindSortableHeaders() {
+        // Re-bind sortable headers after rendering
+        const sortableHeaders = document.querySelectorAll('.sortable');
+        sortableHeaders.forEach(header => {
+            header.addEventListener('click', (e) => {
+                const sortBy = header.dataset.sort;
+                this.handleSort(sortBy);
+            });
+        });
+    }
+
+    handleSort(sortBy) {
+        // If clicking the same column, toggle order
+        if (this.currentSort === sortBy) {
+            this.currentSortOrder = this.currentSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.currentSort = sortBy;
+            this.currentSortOrder = 'asc';
+        }
+
+        this.applySorting(this.currentSort, this.currentSortOrder);
+        this.updateSortIndicators();
+        this.renderModels();
+    }
+
+    updateSortIndicators() {
+        // Reset all indicators
+        document.querySelectorAll('.sort-indicator').forEach(indicator => {
+            indicator.textContent = '↕️';
+        });
+
+        // Update current sort indicator
+        const currentIndicator = document.getElementById(`sort-${this.currentSort}`);
+        if (currentIndicator) {
+            const headerItem = currentIndicator.closest('.list-header-item');
+            headerItem.classList.remove('sort-asc', 'sort-desc');
+            headerItem.classList.add(`sort-${this.currentSortOrder}`);
+
+            currentIndicator.textContent = this.currentSortOrder === 'asc' ? '↑' : '↓';
+        }
     }
 
     handleFilter(filterType) {
@@ -353,7 +442,71 @@ class ModelBrowser {
             });
         }
 
+        // Apply current sorting
+        this.applySorting(this.currentSort, this.currentSortOrder);
         this.renderModels();
+    }
+
+    handleSort(sortBy, sortOrder) {
+        this.applySorting(sortBy, sortOrder);
+        this.renderModels();
+    }
+
+    applySorting(sortBy, sortOrder) {
+        this.filteredModels.sort((a, b) => {
+            let valueA, valueB;
+
+            switch (sortBy) {
+                case 'name':
+                    valueA = (a.name || a.id).toLowerCase();
+                    valueB = (b.name || b.id).toLowerCase();
+                    break;
+
+                case 'created':
+                    valueA = this.parseDate(a.created);
+                    valueB = this.parseDate(b.created);
+                    break;
+
+                case 'owned_by':
+                    valueA = a.owned_by.toLowerCase();
+                    valueB = b.owned_by.toLowerCase();
+                    break;
+
+                case 'context_length':
+                    valueA = a.context_length || 0;
+                    valueB = b.context_length || 0;
+                    break;
+
+                case 'pricing':
+                    valueA = this.getPricingValue(a.pricing);
+                    valueB = this.getPricingValue(b.pricing);
+                    break;
+
+                default:
+                    return 0;
+            }
+
+            if (valueA < valueB) {
+                return sortOrder === 'asc' ? -1 : 1;
+            }
+            if (valueA > valueB) {
+                return sortOrder === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+    }
+
+    parseDate(dateValue) {
+        if (typeof dateValue === 'number') {
+            return dateValue; // Unix timestamp
+        } else {
+            return new Date(dateValue).getTime(); // ISO string or other format
+        }
+    }
+
+    getPricingValue(pricing) {
+        if (!pricing || !pricing.completion) return 0;
+        return pricing.completion; // Sort by completion price
     }
 
     setView(viewType) {
